@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareVault AI &mdash; Your Health. Your Records. Your Control.</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/static/css/custom.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0284c7',
+                        accent: '#0d9488',
+                        danger: '#e11d48'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Hackathon Demo Notice & Role Switcher Bar -->
+    <div class="bg-slate-900 text-white border-b border-slate-800 text-xs py-2 px-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 rounded font-black bg-rose-600 text-white tracking-wider text-[10px]">HACKATHON DEMO</span>
+            <span class="text-slate-300 font-medium">CareVault AI &bull; Synthetic Health Wallet & AI Decision Support</span>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <span class="text-slate-400 font-semibold text-[11px] hidden sm:inline">SWITCH DEMO ROLE:</span>
+            <button id="btn-role-patient" onclick="switchRole('PATIENT')" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-600 text-white shadow-sm flex items-center space-x-1.5">
+                <i data-lucide="user" class="w-3.5 h-3.5"></i>
+                <span>Patient (Priya)</span>
+            </button>
+            <button id="btn-role-doctor" onclick="switchRole('DOCTOR')" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1.5">
+                <i data-lucide="stethoscope" class="w-3.5 h-3.5"></i>
+                <span>Doctor (Dr. Mehta)</span>
+            </button>
+            <button id="btn-role-lab" onclick="switchRole('LAB')" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1.5">
+                <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i>
+                <span>Lab (Apex)</span>
+            </button>
+            <button id="btn-role-admin" onclick="switchRole('ADMIN')" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center space-x-1.5">
+                <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                <span>Admin</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <header class="glass-nav sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+                <i data-lucide="shield-check" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <div class="font-black text-xl tracking-tight text-slate-900 flex items-center space-x-1.5">
+                    <span>CareVault</span>
+                    <span class="text-sky-600">AI</span>
+                </div>
+                <div class="text-[11px] font-semibold text-slate-500 -mt-1 tracking-wide">
+                    Your Health. Your Records. Your Control.
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side Nav Controls -->
+        <div class="flex items-center space-x-3">
+            <!-- Prominent Emergency Button -->
+            <button onclick="switchPatientTab('emergency')" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md pulse-emergency flex items-center space-x-1.5 transition">
+                <i data-lucide="siren" class="w-4 h-4"></i>
+                <span>🚨 EMERGENCY</span>
+            </button>
+
+            <!-- Notifications Drawer Trigger -->
+            <div class="relative">
+                <button onclick="document.getElementById('notif-drawer').classList.toggle('hidden')" class="p-2 rounded-xl text-slate-600 hover:bg-slate-100 relative transition">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span id="notif-count-badge" class="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-bold items-center justify-center hidden">
+                        0
+                    </span>
+                </button>
+
+                <!-- Notifications Dropdown -->
+                <div id="notif-drawer" class="hidden absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                    <div class="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                        <span class="font-bold text-xs text-slate-800">Notifications</span>
+                        <span class="text-[10px] text-slate-400">Patient Feed</span>
+                    </div>
+                    <div id="notif-list-container" class="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Profile Chip -->
+            <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
+                <div class="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs">
+                    <i data-lucide="user-check" class="w-4 h-4"></i>
+                </div>
+                <div class="hidden md:block text-left text-xs leading-tight">
+                    <div id="user-name-display" class="font-bold text-slate-900">Loading...</div>
+                    <div id="user-role-badge" class="text-[10px] text-slate-500 font-mono">PATIENT</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APPLICATION CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ========================================== -->
+        <!-- 1. PATIENT PORTAL -->
+        <!-- ========================================== -->
+        <div id="portal-patient" class="space-y-6">
+            
+            <!-- Patient Navigation Bar -->
+            <div class="flex items-center space-x-1 overflow-x-auto pb-2 scrollbar-none border-b border-slate-200">
+                <button id="nav-dashboard" onclick="switchPatientTab('dashboard')" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-50 text-sky-700 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button id="nav-records" onclick="switchPatientTab('records')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="folder-heart" class="w-4 h-4"></i>
+                    <span>My Health Wallet</span>
+                </button>
+                <button id="nav-ai-assistant" onclick="switchPatientTab('ai-assistant')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                    <span>AI Assistant</span>
+                </button>
+                <button id="nav-ai-explainer" onclick="switchPatientTab('ai-explainer')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span>Explain Report</span>
+                </button>
+                <button id="nav-ai-prescription" onclick="switchPatientTab('ai-prescription')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    <span>Handwritten Rx Reader</span>
+                </button>
+                <button id="nav-ai-duplicates" onclick="switchPatientTab('ai-duplicates')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                    <span>Duplicate Test Alert</span>
+                </button>
+                <button id="nav-ai-awareness" onclick="switchPatientTab('ai-awareness')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="book-open" class="w-4 h-4"></i>
+                    <span>Understand Health</span>
+                </button>
+                <button id="nav-doctor-questions" onclick="switchPatientTab('doctor-questions')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="check-square" class="w-4 h-4"></i>
+                    <span>Doctor Questions</span>
+                </button>
+                <button id="nav-consent-share" onclick="switchPatientTab('consent-share')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="qr-code" class="w-4 h-4"></i>
+                    <span>Consent & QR Share</span>
+                </button>
+                <button id="nav-hospital-finder" onclick="switchPatientTab('hospital-finder')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                    <span>Find Hospitals & Map</span>
+                </button>
+                <button id="nav-access-history" onclick="switchPatientTab('access-history')" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 transition whitespace-nowrap">
+                    <i data-lucide="history" class="w-4 h-4"></i>
+                    <span>Access History</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: PATIENT DASHBOARD -->
+            <div id="tab-dashboard" class="space-y-6">
+                <!-- Welcome Hero & Health Overview Card -->
+                <div class="glass-panel p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 relative overflow-hidden bg-gradient-to-r from-white via-sky-50/30 to-white">
+                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div>
+                            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-bold mb-2">
+                                <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-500 fill-rose-500"></i>
+                                <span>Patient-Controlled Digital Health Wallet</span>
+                            </div>
+                            <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                                Welcome, <span id="p-welcome-name">Priya Sharma</span>
+                            </h2>
+                            <p class="text-sm text-slate-600 mt-1 max-w-xl">
+                                You own your health records. Access, understand, and securely grant view-only permission to doctors and hospitals anytime.
+                            </p>
+                        </div>
+
+                        <!-- Quick Action Buttons -->
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="document.getElementById('upload-record-modal').classList.remove('hidden')" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center space-x-1.5">
+                                <i data-lucide="upload" class="w-4 h-4"></i>
+                                <span>Upload Record</span>
+                            </button>
+                            <button onclick="generateShareQR()" class="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center space-x-1.5">
+                                <i data-lucide="qr-code" class="w-4 h-4"></i>
+                                <span>Share Records (QR)</span>
+                            </button>
+                            <button onclick="showEmergencyMedicalID()" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
+                                <i data-lucide="id-card" class="w-4 h-4"></i>
+                                <span>Emergency Medical ID</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Health Overview Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-200/80">
+                        <div class="p-3.5 bg-white/80 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Blood Group</div>
+                            <div id="p-blood-group" class="text-lg font-black text-rose-600 mt-0.5">B+</div>
+                        </div>
+                        <div class="p-3.5 bg-white/80 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Documented Allergies</div>
+                            <div id="p-allergies" class="text-xs font-semibold text-slate-800 mt-0.5 line-clamp-2">Penicillin, Sulfa drugs</div>
+                        </div>
+                        <div class="p-3.5 bg-white/80 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Existing Conditions</div>
+                            <div id="p-conditions" class="text-xs font-semibold text-slate-800 mt-0.5 line-clamp-2">Type 2 Diabetes, Hypertension</div>
+                        </div>
+                        <div class="p-3.5 bg-white/80 rounded-2xl border border-slate-200 shadow-sm">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Current Medications</div>
+                            <div id="p-medications" class="text-xs font-semibold text-slate-800 mt-0.5 line-clamp-2">Metformin 500mg, Amlodipine</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Metrics -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span class="text-xs font-bold uppercase tracking-wider">Total Records</span>
+                            <i data-lucide="files" class="w-4 h-4 text-sky-600"></i>
+                        </div>
+                        <div id="stat-total-records" class="text-2xl font-black text-slate-900 mt-2">6</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">Verified health wallet files</div>
+                    </div>
+
+                    <div class="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span class="text-xs font-bold uppercase tracking-wider">Recent Reports</span>
+                            <i data-lucide="calendar" class="w-4 h-4 text-teal-600"></i>
+                        </div>
+                        <div id="stat-recent-records" class="text-2xl font-black text-slate-900 mt-2">6</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">Recorded within past 30 days</div>
+                    </div>
+
+                    <div class="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span class="text-xs font-bold uppercase tracking-wider">Active Permissions</span>
+                            <i data-lucide="lock-open" class="w-4 h-4 text-emerald-600"></i>
+                        </div>
+                        <div id="stat-active-consents" class="text-2xl font-black text-emerald-600 mt-2">1</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">Temporary doctor sessions</div>
+                    </div>
+
+                    <div class="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span class="text-xs font-bold uppercase tracking-wider">Expired / Revoked</span>
+                            <i data-lucide="shield-off" class="w-4 h-4 text-slate-500"></i>
+                        </div>
+                        <div id="stat-expired-consents" class="text-2xl font-black text-slate-600 mt-2">1</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">Historical sharing sessions</div>
+                    </div>
+                </div>
+
+                <!-- Recent Medical Records Table -->
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-base">Recent Medical Records</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Direct transfers from diagnostics, hospitals, and self-uploaded documents</p>
+                        </div>
+                        <button onclick="switchPatientTab('records')" class="text-xs font-bold text-sky-600 hover:text-sky-700">
+                            View All Records &rarr;
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                                <tr>
+                                    <th class="py-3 px-4">Date</th>
+                                    <th class="py-3 px-4">Record Title</th>
+                                    <th class="py-3 px-4">Category</th>
+                                    <th class="py-3 px-4">Issuing Center</th>
+                                    <th class="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-reports-table">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: MY HEALTH RECORDS & TIMELINE -->
+            <div id="tab-records" class="hidden space-y-6">
+                <!-- Filters & Controls Bar -->
+                <div class="glass-panel p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+                    <div class="flex-1 w-full flex flex-col sm:flex-row items-center gap-2.5">
+                        <div class="relative w-full sm:w-64">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                            <input id="record-search-input" type="text" onkeyup="loadPatientRecords()" placeholder="Search records, doctor, tests..." class="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                        </div>
+
+                        <select id="record-category-filter" onchange="loadPatientRecords()" class="w-full sm:w-48 py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            <option value="All">All Categories</option>
+                            <option value="Lab Reports">Lab Reports</option>
+                            <option value="X-rays">X-rays</option>
+                            <option value="CT/MRI">CT/MRI</option>
+                            <option value="Prescriptions">Prescriptions</option>
+                            <option value="Discharge Summaries">Discharge Summaries</option>
+                            <option value="Doctor Notes">Doctor Notes</option>
+                            <option value="Vaccination Records">Vaccination Records</option>
+                            <option value="Previous Treatments">Previous Treatments</option>
+                            <option value="Other Documents">Other Documents</option>
+                        </select>
+
+                        <select id="record-sort-select" onchange="loadPatientRecords()" class="w-full sm:w-32 py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+                        <!-- Grid vs Timeline view toggle -->
+                        <button id="btn-view-grid" onclick="toggleTimelineMode(false)" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium text-xs flex items-center space-x-1">
+                            <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+                            <span>Cards</span>
+                        </button>
+                        <button id="btn-view-timeline" onclick="toggleTimelineMode(true)" class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-medium text-xs flex items-center space-x-1">
+                            <i data-lucide="git-commit" class="w-3.5 h-3.5"></i>
+                            <span>Timeline</span>
+                        </button>
+                        <button onclick="document.getElementById('upload-record-modal').classList.remove('hidden')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold text-xs flex items-center space-x-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Upload</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Records Grid View -->
+                <div id="records-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Chronological Timeline View -->
+                <div id="records-timeline-container" class="hidden max-w-3xl mx-auto p-4">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- TAB 3: CONVERSATIONAL AI HEALTH ASSISTANT -->
+            <div id="tab-ai-assistant" class="hidden space-y-4">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                            <i data-lucide="bot" class="w-5 h-5 text-sky-600"></i>
+                            <span>CareVault AI Health Assistant</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Ask questions about your uploaded blood reports, prescriptions, or allergies. Strictly non-diagnostic.</p>
+                    </div>
+                    <button onclick="loadHistorySummary()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition flex items-center space-x-1">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                        <span>Summarize My History</span>
+                    </button>
+                </div>
+
+                <!-- Chat Box -->
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-[520px] overflow-hidden">
+                    <div id="chat-messages-container" class="flex-1 p-5 overflow-y-auto space-y-4">
+                        <div class="flex justify-start">
+                            <div class="bg-slate-100 border border-slate-200 text-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-xs shadow-sm space-y-2">
+                                <div class="font-bold text-sky-700 flex items-center space-x-1">
+                                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-sky-600"></i>
+                                    <span>Welcome to CareVault AI</span>
+                                </div>
+                                <div class="leading-relaxed">
+                                    Hello Priya. I can help explain medical terms in your records, summarize your clinical history, or suggest questions to prepare for your doctor appointments. 
+                                    <b>Note:</b> I am an informational tool and cannot diagnose illness or adjust dosages.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prompt suggestions -->
+                    <div class="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center space-x-2 overflow-x-auto text-[11px]">
+                        <button onclick="sendChatMessage('Explain my recent HbA1c test result in simple terms')" class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 hover:border-sky-400 whitespace-nowrap">
+                            Explain my recent HbA1c test
+                        </button>
+                        <button onclick="sendChatMessage('Summarize my medical history')" class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 hover:border-sky-400 whitespace-nowrap">
+                            Summarize my medical history
+                        </button>
+                        <button onclick="sendChatMessage('What do my allergies indicate for new prescriptions?')" class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 hover:border-sky-400 whitespace-nowrap">
+                            Check my allergies
+                        </button>
+                        <button onclick="sendChatMessage('What questions should I ask my doctor about my kidney stone?')" class="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 hover:border-sky-400 whitespace-nowrap">
+                            Questions for kidney stone visit
+                        </button>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="p-3 bg-white border-t border-slate-200 flex items-center space-x-2">
+                        <input id="chat-query-input" type="text" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="Ask CareVault AI about your health records..." class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                        <button onclick="sendChatMessage()" class="p-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition shadow-sm">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: AI MEDICAL REPORT EXPLAINER & MULTI-LANGUAGE -->
+            <div id="tab-ai-explainer" class="hidden space-y-5">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                            <i data-lucide="sparkles" class="w-5 h-5 text-indigo-600"></i>
+                            <span>AI Medical Report Explanation</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Demystifies medical reports in simple terms without clinical diagnosis.</p>
+                    </div>
+
+                    <!-- Language Selector Bar (8 Languages) -->
+                    <div class="flex items-center space-x-1.5 flex-wrap">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Translate To:</span>
+                        <button onclick="changeExplanationLanguage('en')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600 text-white">English</button>
+                        <button onclick="changeExplanationLanguage('te')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">తెలుగు</button>
+                        <button onclick="changeExplanationLanguage('hi')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">हिन्दी</button>
+                        <button onclick="changeExplanationLanguage('ta')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">தமிழ்</button>
+                        <button onclick="changeExplanationLanguage('kn')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">ಕನ್ನಡ</button>
+                        <button onclick="changeExplanationLanguage('ml')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">മലയാളം</button>
+                        <button onclick="changeExplanationLanguage('mr')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">मराठी</button>
+                        <button onclick="changeExplanationLanguage('bn')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">বাংলা</button>
+                    </div>
+                </div>
+
+                <!-- Explanation Content Box -->
+                <div id="ai-explanation-content" class="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+                    <div class="py-12 text-center text-slate-400">
+                        <i data-lucide="file-search" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                        <div>Select a report from <b onclick="switchPatientTab('records')" class="text-sky-600 cursor-pointer underline">My Health Wallet</b> and click "Explain AI".</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: AI HANDWRITTEN PRESCRIPTION READER -->
+            <div id="tab-ai-prescription" class="hidden space-y-5">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                            <i data-lucide="file-text" class="w-5 h-5 text-sky-600"></i>
+                            <span>AI Handwritten Prescription Reader</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Extracts medicine names and dosages with confidence scores. Refuses to guess unclear handwriting.</p>
+                    </div>
+
+                    <!-- Preset Samples for Hackathon Judges -->
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-slate-500 font-semibold">Test Presets:</span>
+                        <button onclick="runPrescriptionReader('clear_diabetes_bp')" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition">
+                            Sample 1: Clear Script (96% Conf)
+                        </button>
+                        <button onclick="runPrescriptionReader('unclear_scrawled')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-xl text-xs font-bold transition">
+                            Sample 2: Unclear Scrawl (Safety Guardrail)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Prescription Pipeline View -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left: Prescription Image Slip -->
+                    <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col items-center">
+                        <div class="w-full text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider flex items-center justify-between">
+                            <span>Prescription Document</span>
+                            <span class="text-sky-600 font-mono">Image Source</span>
+                        </div>
+                        <div class="w-full max-h-[500px] overflow-hidden rounded-xl border border-slate-200 shadow-inner bg-slate-50 flex items-center justify-center">
+                            <img id="rx-preview-img" src="/api/ai/prescription-sample-image/clear_diabetes_bp" alt="Prescription Sample" class="w-full object-contain">
+                        </div>
+                    </div>
+
+                    <!-- Right: Analysis Output -->
+                    <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                        <div id="prescription-result-container">
+                            <div class="py-12 text-center text-slate-400">
+                                <i data-lucide="scan-line" class="w-10 h-10 mx-auto mb-2 text-sky-500"></i>
+                                <div class="font-medium text-slate-700">Click a test preset above or upload an Rx photo to run OCR.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: AI DUPLICATE / RECENT TEST DETECTION -->
+            <div id="tab-ai-duplicates" class="hidden space-y-5">
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm max-w-3xl mx-auto space-y-4">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-lg flex items-center space-x-2">
+                            <i data-lucide="copy" class="w-5 h-5 text-amber-500"></i>
+                            <span>Duplicate & Recent Test Detection</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-1">
+                            Before getting a new test done, verify if a similar investigation was recently recorded in your CareVault to discuss with your doctor whether repetition is clinically necessary.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <input id="duplicate-test-input" type="text" placeholder="Enter test name, e.g. 'CT Abdomen' or 'Complete Blood Count'" value="CT Abdomen & Pelvis" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                        <button onclick="runDuplicateCheck()" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
+                            Check Duplicates
+                        </button>
+                    </div>
+
+                    <div id="duplicate-result-container" class="mt-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: "UNDERSTAND YOUR HEALTH" CONDITION AWARENESS -->
+            <div id="tab-ai-awareness" class="hidden space-y-5">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                            <i data-lucide="book-open" class="w-5 h-5 text-teal-600"></i>
+                            <span>Understand Your Health (Condition Guide)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Educational guide to diseases and medical conditions mentioned in your records.</p>
+                    </div>
+                    <select id="condition-select" onchange="fetchConditionDetails()" class="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500 outline-none">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <div id="condition-detail-card" class="max-w-4xl mx-auto">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- TAB 8: DOCTOR VISIT QUESTION GENERATOR -->
+            <div id="tab-doctor-questions" class="hidden space-y-5">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                            <i data-lucide="check-square" class="w-5 h-5 text-indigo-600"></i>
+                            <span>Prepare for Doctor Visit (Checklist)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Personalized questions synthesized from your recent tests and medical history.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="printDoctorChecklist()" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1">
+                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                            <span>Print Checklist</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="max-w-3xl mx-auto space-y-4">
+                    <!-- Add custom question -->
+                    <div class="flex items-center space-x-2">
+                        <input id="new-question-input" type="text" placeholder="Add your own custom question for the doctor..." class="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none shadow-sm">
+                        <button onclick="addCustomDoctorQuestion()" class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition">
+                            Add Question
+                        </button>
+                    </div>
+
+                    <!-- Questions list -->
+                    <div id="doctor-questions-list" class="space-y-2.5">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 9: PATIENT CONSENT & QR SHARING -->
+            <div id="tab-consent-share" class="hidden space-y-6">
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-lg flex items-center space-x-2">
+                            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>
+                            <span>Patient-Controlled Sharing & Consent Manager</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-1 max-w-xl">
+                            Healthcare providers can ONLY see records you explicitly authorize. You can revoke access at any second.
+                        </p>
+                    </div>
+                    <button onclick="generateShareQR()" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center space-x-1.5">
+                        <i data-lucide="qr-code" class="w-4 h-4"></i>
+                        <span>Generate Instant Share QR</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Incoming Requests -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-slate-900 text-sm">Incoming Access Requests</h4>
+                            <span class="text-xs text-slate-400">Needs Approval</span>
+                        </div>
+                        <div id="pending-consents-container" class="space-y-3">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Active Sharing Sessions -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-slate-900 text-sm">Active Provider Sessions</h4>
+                            <span class="text-xs text-emerald-600 font-semibold">Live Granted</span>
+                        </div>
+                        <div id="active-consents-container" class="space-y-3">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 10: SMART HOSPITAL FINDER & NEARBY MAP -->
+            <div id="tab-hospital-finder" class="hidden space-y-6">
+                <!-- Search & Weights Header -->
+                <div class="glass-panel p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-lg flex items-center space-x-2">
+                                <i data-lucide="search" class="w-5 h-5 text-sky-600"></i>
+                                <span>Smart Hospital & Service Finder</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Natural language treatment search with transparent multi-factor weighted matching.</p>
+                        </div>
+                    </div>
+
+                    <!-- NLP Query Input -->
+                    <div class="flex items-center space-x-2">
+                        <input id="hospital-query-input" type="text" placeholder="e.g., 'I need kidney stone treatment' or 'Chest pain cardiac emergency'" value="I need kidney stone treatment" class="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                        <button onclick="loadHospitals()" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
+                            Match Facilities
+                        </button>
+                    </div>
+
+                    <!-- Filters Bar -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+                        <select id="hospital-spec-filter" onchange="loadHospitals()" class="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs">
+                            <option value="All">All Specialties</option>
+                            <option value="Urology" selected>Urology</option>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="Orthopedics">Orthopedics</option>
+                            <option value="Nephrology">Nephrology</option>
+                            <option value="General Medicine">General Medicine</option>
+                        </select>
+
+                        <select id="hospital-cost-filter" onchange="loadHospitals()" class="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs">
+                            <option value="All">All Cost Ranges</option>
+                            <option value="$">$ (Subsidized)</option>
+                            <option value="$$">$$ (Moderate)</option>
+                            <option value="$$$">$$$ (Premium)</option>
+                        </select>
+
+                        <select id="hospital-ins-filter" onchange="loadHospitals()" class="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs">
+                            <option value="All">All Insurance</option>
+                            <option value="Star Health">Star Health</option>
+                            <option value="Ayushman Bharat">Ayushman Bharat</option>
+                            <option value="CGHS">CGHS</option>
+                        </select>
+
+                        <label class="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                            <input id="hospital-emergency-filter" type="checkbox" onchange="loadHospitals()" class="rounded text-rose-600 focus:ring-rose-500">
+                            <span>24/7 Emergency Only</span>
+                        </label>
+                    </div>
+
+                    <!-- Configurable Matching Weights Slider Accordion -->
+                    <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                        <div class="text-[11px] font-bold text-slate-600 mb-2 uppercase tracking-wider">Configurable Matching Engine Weights:</div>
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold">Specialty (40%)</label>
+                                <input type="range" id="weight-spec" min="10" max="60" value="40" oninput="loadHospitals()" class="w-full">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold">Distance (25%)</label>
+                                <input type="range" id="weight-dist" min="10" max="50" value="25" oninput="loadHospitals()" class="w-full">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold">Cost Fit (15%)</label>
+                                <input type="range" id="weight-cost" min="5" max="30" value="15" oninput="loadHospitals()" class="w-full">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold">Insurance (10%)</label>
+                                <input type="range" id="weight-ins" min="5" max="30" value="10" oninput="loadHospitals()" class="w-full">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold">Verification (10%)</label>
+                                <input type="range" id="weight-ver" min="5" max="30" value="10" oninput="loadHospitals()" class="w-full">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map and Results Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left: Interactive Leaflet Map -->
+                    <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-700">Nearby Healthcare Map</span>
+                            <span class="text-[11px] text-slate-400">Jubilee Hills Center</span>
+                        </div>
+                        <div id="leaflet-map"></div>
+                    </div>
+
+                    <!-- Right: Ranked Match Results -->
+                    <div class="lg:col-span-7 space-y-3">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-500 px-1">
+                            <span>Best Matches Based on Your Criteria</span>
+                            <span class="text-[11px] text-slate-400">Never called 'best hospital'</span>
+                        </div>
+                        <div id="hospital-results-list" class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 11: 🚨 EMERGENCY MODE -->
+            <div id="tab-emergency" class="hidden space-y-6">
+                <!-- High Urgency Header -->
+                <div class="bg-gradient-to-r from-rose-600 via-rose-700 to-rose-600 text-white p-6 sm:p-8 rounded-3xl shadow-xl space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2.5 py-1 rounded-full bg-white/20 text-white font-black text-xs uppercase tracking-wider">CRITICAL MODE</span>
+                        <span class="text-xs text-rose-100">CareVault Rapid Response</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-black tracking-tight">🚨 Emergency Healthcare Discovery</h2>
+                    <p class="text-xs sm:text-sm text-rose-100 max-w-2xl leading-relaxed font-medium">
+                        If this is a life-threatening medical emergency, call 108/112 or seek immediate professional medical care. Do not wait for an AI conversation.
+                    </p>
+                    <div class="pt-2 flex flex-wrap gap-2">
+                        <a href="tel:108" class="px-5 py-2.5 bg-white text-rose-700 hover:bg-rose-50 rounded-xl text-xs font-black shadow-md transition flex items-center space-x-1.5">
+                            <i data-lucide="phone-call" class="w-4 h-4"></i>
+                            <span>DIAL 108 (AMBULANCE)</span>
+                        </a>
+                        <a href="tel:112" class="px-5 py-2.5 bg-rose-950 text-white hover:bg-black rounded-xl text-xs font-black shadow-md transition flex items-center space-x-1.5">
+                            <i data-lucide="phone" class="w-4 h-4"></i>
+                            <span>DIAL 112 (ALL EMERGENCY)</span>
+                        </a>
+                        <button onclick="showEmergencyMedicalID()" class="px-5 py-2.5 bg-rose-500/50 hover:bg-rose-500/70 text-white rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
+                            <i data-lucide="id-card" class="w-4 h-4"></i>
+                            <span>Show Emergency Medical ID</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Nearest Level 1 Trauma & Emergency Centers -->
+                <div class="space-y-4">
+                    <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                        <i data-lucide="activity" class="w-5 h-5 text-rose-600"></i>
+                        <span>Nearest Verified Emergency & Trauma Centers</span>
+                    </h3>
+                    <div id="emergency-facilities-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 12: ACCESS HISTORY & AUDIT LOG -->
+            <div id="tab-access-history" class="hidden space-y-5">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                            <i data-lucide="history" class="w-5 h-5 text-sky-600"></i>
+                            <span>Patient Access History (Tamper-Evident Audit Trail)</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Chronological, immutable audit log of all record requests, views, uploads, and revocations.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                                <tr>
+                                    <th class="py-3 px-4">Date / Time (UTC)</th>
+                                    <th class="py-3 px-4">Actor & Role</th>
+                                    <th class="py-3 px-4">Record</th>
+                                    <th class="py-3 px-4">Action</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Audit Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-history-table">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. DOCTOR / HEALTHCARE PROVIDER PORTAL -->
+        <!-- ========================================== -->
+        <div id="portal-doctor" class="hidden space-y-6">
+            <div class="glass-panel p-6 rounded-3xl border border-slate-200 shadow-sm bg-gradient-to-r from-white via-sky-50/40 to-white">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <span class="badge-category bg-sky-100 text-sky-800 font-bold mb-1 inline-block">Provider Clinical Portal</span>
+                        <h2 class="text-2xl font-black text-slate-900">Dr. Rajesh Mehta, MD (Cardiology)</h2>
+                        <div class="text-xs text-slate-600">Apollo Health City Hospital &bull; License: MCI-48291 &bull; Verified Doctor</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Doctor Portals: Request Access + Live Sessions -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Request Access Form -->
+                <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                    <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                        <i data-lucide="send" class="w-4 h-4 text-sky-600"></i>
+                        <span>Request Patient Record Access</span>
+                    </h3>
+
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Target Patient ID</label>
+                            <input id="doc-req-pid" type="text" placeholder="e.g., CV-PAT-1001" value="CV-PAT-1001" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono">
+                        </div>
+
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Clinical Purpose</label>
+                            <input id="doc-req-purpose" type="text" placeholder="e.g., Cardiology Consultation & ECG Review" value="Cardiology Consultation & ECG Review" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Requested Categories</label>
+                            <div class="grid grid-cols-2 gap-2 pt-1">
+                                <label class="flex items-center space-x-2"><input id="doc-scope-labs" type="checkbox" checked class="rounded text-sky-600"><span>Lab Reports</span></label>
+                                <label class="flex items-center space-x-2"><input id="doc-scope-rx" type="checkbox" checked class="rounded text-sky-600"><span>Prescriptions</span></label>
+                                <label class="flex items-center space-x-2"><input id="doc-scope-scans" type="checkbox" checked class="rounded text-sky-600"><span>Scans / CT / MRI</span></label>
+                                <label class="flex items-center space-x-2"><input id="doc-scope-all" type="checkbox" class="rounded text-sky-600"><span>All Records</span></label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Requested Duration</label>
+                            <select id="doc-req-duration" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                                <option value="15">15 Minutes</option>
+                                <option value="30" selected>30 Minutes</option>
+                                <option value="60">60 Minutes</option>
+                            </select>
+                        </div>
+
+                        <button onclick="requestDoctorAccess()" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold transition shadow-sm">
+                            Submit Access Request
+                        </button>
+                    </div>
+
+                    <!-- QR Scanner Simulated -->
+                    <div class="pt-4 border-t border-slate-100">
+                        <label class="font-bold text-slate-800 text-xs block mb-1">Or Claim Patient QR Code Token:</label>
+                        <div class="flex items-center space-x-2">
+                            <input id="doc-qr-token-input" type="text" placeholder="Paste patient QR token..." class="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-mono">
+                            <button onclick="scanQRTokenDoctor()" class="px-3 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold">Claim</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Patient Sessions & Live Countdown -->
+                <div class="lg:col-span-7 space-y-3">
+                    <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                        <i data-lucide="users" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Active Patient Consent Sessions</span>
+                    </h3>
+                    <div id="doctor-sessions-container" class="space-y-3">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. LAB / DIAGNOSTIC CENTER PORTAL -->
+        <!-- ========================================== -->
+        <div id="portal-lab" class="hidden space-y-6 max-w-4xl mx-auto">
+            <div class="glass-panel p-6 rounded-3xl border border-slate-200 shadow-sm bg-gradient-to-r from-white via-teal-50/40 to-white">
+                <span class="badge-category bg-teal-100 text-teal-800 font-bold mb-1 inline-block">Diagnostic Center Direct Transfer</span>
+                <h2 class="text-2xl font-black text-slate-900">Apex Central Diagnostics & Pathology</h2>
+                <div class="text-xs text-slate-600">NABL Accredited &bull; License: NABL-9281-EXP &bull; Direct Health Wallet Integration</div>
+            </div>
+
+            <!-- Lab Transfer Form -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+                <!-- Step 1: Patient Search -->
+                <div class="space-y-2">
+                    <label class="font-bold text-slate-800 text-sm block">Step 1: Verify Patient by CareVault ID</label>
+                    <div class="flex items-center space-x-2">
+                        <input id="lab-patient-search-id" type="text" placeholder="Enter CareVault ID, e.g. CV-PAT-1001" value="CV-PAT-1001" class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none">
+                        <button onclick="verifyPatientForLab()" class="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold transition">
+                            Verify Patient
+                        </button>
+                    </div>
+                    
+                    <!-- Verified Patient Confirmation Box -->
+                    <div id="lab-verified-patient-box" class="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs flex items-center justify-between">
+                        <div>
+                            <span class="font-bold text-emerald-900">Verified Patient:</span>
+                            <span id="lab-confirmed-name" class="font-semibold text-slate-800 ml-1">Priya Sharma</span>
+                            <span class="text-slate-500 ml-2">DOB: <span id="lab-confirmed-dob">1991-04-14</span> &bull; Blood: <span id="lab-confirmed-blood">B+</span></span>
+                        </div>
+                        <input type="hidden" id="lab-target-pid" value="CV-PAT-1001">
+                        <span class="px-2 py-0.5 bg-emerald-200 text-emerald-800 font-bold rounded text-[10px]">VERIFIED</span>
+                    </div>
+                </div>
+
+                <!-- Step 2: Diagnostic Record Details -->
+                <div class="space-y-3 pt-4 border-t border-slate-100 text-xs">
+                    <label class="font-bold text-slate-800 text-sm block">Step 2: Enter Investigation & Result Details</label>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Test Title</label>
+                            <input id="lab-rec-title" type="text" placeholder="e.g. Lipid Profile & Cholesterol" value="Lipid Profile Comprehensive" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Record Category</label>
+                            <select id="lab-rec-type" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                                <option value="Lab Reports" selected>Lab Reports</option>
+                                <option value="CT/MRI">CT/MRI</option>
+                                <option value="X-rays">X-rays</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Ordering Physician</label>
+                            <input id="lab-rec-doctor" type="text" placeholder="e.g. Dr. Rajesh Mehta" value="Dr. Rajesh Mehta, MD (Cardio)" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                        <div>
+                            <label class="font-semibold text-slate-700 block mb-1">Sample Date</label>
+                            <input id="lab-rec-date" type="date" value="2026-10-01" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Clinical Observations / Diagnostic Parameters (1 per line)</label>
+                        <textarea id="lab-rec-params" rows="4" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" placeholder="- Total Cholesterol: 185 mg/dL (Desirable: <200)&#10;- HDL Cholesterol: 48 mg/dL&#10;- LDL Cholesterol: 110 mg/dL&#10;- Triglycerides: 140 mg/dL">- Total Cholesterol: 185 mg/dL (Reference: <200 mg/dL) [NORMAL]
+- HDL Cholesterol: 48 mg/dL (Reference: >40 mg/dL) [NORMAL]
+- LDL Cholesterol: 108 mg/dL (Reference: <100 mg/dL) [BORDERLINE]
+- Triglycerides: 135 mg/dL (Reference: <150 mg/dL) [NORMAL]</textarea>
+                    </div>
+
+                    <button onclick="submitLabRecordTransfer()" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition shadow-md flex items-center justify-center space-x-2">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        <span>Transfer Directly to Patient's Health Wallet</span>
+                    </button>
+                    <div class="text-[11px] text-slate-400 text-center italic">
+                        Notice: Transferring a record does NOT grant the diagnostic lab access to previous patient history without consent.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 4. ADMIN DASHBOARD -->
+        <!-- ========================================== -->
+        <div id="portal-admin" class="hidden space-y-6">
+            <div class="glass-panel p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <span class="badge-category bg-slate-900 text-white font-bold mb-1 inline-block">System Administration</span>
+                <h2 class="text-2xl font-black text-slate-900">CareVault AI Platform Operations</h2>
+                <div class="text-xs text-slate-600">Synthetic Facility Management &bull; Verification Statuses &bull; Global System Audit Logs</div>
+            </div>
+
+            <!-- Admin KPIs -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+                    <div id="admin-total-patients" class="text-2xl font-black text-slate-900">15</div>
+                    <div class="text-[11px] text-slate-400 font-semibold uppercase">Patients</div>
+                </div>
+                <div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+                    <div id="admin-total-doctors" class="text-2xl font-black text-slate-900">4</div>
+                    <div class="text-[11px] text-slate-400 font-semibold uppercase">Doctors</div>
+                </div>
+                <div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+                    <div id="admin-total-facilities" class="text-2xl font-black text-slate-900">35</div>
+                    <div class="text-[11px] text-slate-400 font-semibold uppercase">Facilities</div>
+                </div>
+                <div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+                    <div id="admin-total-records" class="text-2xl font-black text-slate-900">6</div>
+                    <div class="text-[11px] text-slate-400 font-semibold uppercase">Records</div>
+                </div>
+                <div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+                    <div id="admin-active-consents" class="text-2xl font-black text-emerald-600">1</div>
+                    <div class="text-[11px] text-slate-400 font-semibold uppercase">Active Consents</div>
+                </div>
+                <div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+                    <div id="admin-total-audits" class="text-2xl font-black text-sky-600">12</div>
+                    <div class="text-[11px] text-slate-400 font-semibold uppercase">Audit Events</div>
+                </div>
+            </div>
+
+            <!-- Facilities Management Table -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                    <h4 class="font-bold text-slate-900 text-sm">Synthetic Facilities & Verification Directory</h4>
+                    <span class="text-xs text-slate-400">35 Facilities Loaded</span>
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider sticky top-0 border-b border-slate-100">
+                            <tr>
+                                <th class="py-2.5 px-4">Facility ID</th>
+                                <th class="py-2.5 px-4">Name</th>
+                                <th class="py-2.5 px-4">Specialties</th>
+                                <th class="py-2.5 px-4">Cost</th>
+                                <th class="py-2.5 px-4">Verification</th>
+                                <th class="py-2.5 px-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-facilities-table">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 text-xs text-slate-500 py-6 px-6 mt-12">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-center md:text-left">
+                <span class="font-bold text-slate-700">CareVault AI</span> &mdash; "Your Health. Your Records. Your Control."
+                <div class="text-[11px] text-slate-400 mt-0.5">Synthetic Hackathon Evaluation Architecture &bull; Non-diagnostic Healthcare Decision Support</div>
+            </div>
+            <div class="text-[11px] text-slate-400 text-center md:text-right">
+                Patient-Controlled Consent &bull; View-Only Watermarks &bull; Cryptographic QR Exchange &bull; Tamper-Evident Logs
+            </div>
+        </div>
+    </footer>
+
+    <!-- ========================================== -->
+    <!-- MODALS -->
+    <!-- ========================================== -->
+
+    <!-- 1. WATERMARKED DOCUMENT VIEW MODAL -->
+    <div id="document-view-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                <div>
+                    <h3 id="modal-view-title" class="font-bold text-slate-900 text-base">Record Preview</h3>
+                    <div id="modal-view-meta" class="text-xs text-slate-500">Metadata</div>
+                </div>
+                <button onclick="closeDocumentViewModal()" class="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto bg-slate-100 flex items-center justify-center relative">
+                <!-- Watermarked document preview image -->
+                <div class="watermark-container rounded-xl shadow-md bg-white border border-slate-200 max-w-2xl w-full">
+                    <img id="modal-view-img" src="" alt="Watermarked Record Preview" class="w-full object-contain">
+                </div>
+            </div>
+            <div class="p-3 bg-white border-t border-slate-100 text-center text-xs text-slate-400">
+                Security Watermark Applied: View-only access enforced. Downloading or exporting outside consent scope is restricted.
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. UPLOAD MEDICAL RECORD MODAL -->
+    <div id="upload-record-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                    <i data-lucide="upload" class="w-4 h-4 text-sky-600"></i>
+                    <span>Upload Medical Record</span>
+                </h3>
+                <button onclick="document.getElementById('upload-record-modal').classList.add('hidden')" class="p-1.5 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleUploadSubmit(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Record Title</label>
+                    <input id="up-title" type="text" required placeholder="e.g. Thyroid Profile (TSH, T3, T4)" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Category</label>
+                        <select id="up-type" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                            <option value="Lab Reports">Lab Reports</option>
+                            <option value="X-rays">X-rays</option>
+                            <option value="CT/MRI">CT/MRI</option>
+                            <option value="Prescriptions">Prescriptions</option>
+                            <option value="Discharge Summaries">Discharge Summaries</option>
+                            <option value="Doctor Notes">Doctor Notes</option>
+                            <option value="Other Documents">Other Documents</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700 block mb-1">Date</label>
+                        <input id="up-date" type="date" required value="2026-10-01" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Issuing Hospital / Lab</label>
+                    <input id="up-hospital" type="text" required placeholder="e.g. Apollo Diagnostics" value="Apollo Diagnostics" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                </div>
+
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Doctor Name (Optional)</label>
+                    <input id="up-doctor" type="text" placeholder="e.g. Dr. K. Sharma" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                </div>
+
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Description / Findings</label>
+                    <textarea id="up-desc" rows="2" placeholder="Summary notes or report impressions..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"></textarea>
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-bold transition shadow-sm">
+                    Encrypt & Save to Health Wallet
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. QR SHARING MODAL -->
+    <div id="qr-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-center">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span class="font-bold text-slate-800 text-sm">Secure Share QR</span>
+                <button onclick="closeQRModal()" class="text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-center shadow-inner">
+                <img id="qr-modal-image" src="" alt="Secure Share QR Code" class="w-48 h-48 object-contain">
+            </div>
+
+            <div class="text-left text-xs space-y-1">
+                <div><span class="font-bold text-slate-700">Authorized Scopes:</span> <span id="qr-modal-scopes" class="text-sky-700 font-semibold"></span></div>
+                <div><span class="font-bold text-slate-700">Expires:</span> <span id="qr-modal-expires" class="text-rose-600 font-semibold"></span></div>
+            </div>
+
+            <div class="p-2.5 bg-sky-50 border border-sky-200 rounded-xl text-[11px] text-sky-900 text-left">
+                RULE: This QR code contains ONLY a secure crypto token. Zero raw medical data is stored inside the QR code.
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. EMERGENCY MEDICAL ID MODAL -->
+    <div id="emergency-id-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-rose-300 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="px-2 py-0.5 bg-rose-600 text-white font-black text-[10px] rounded">EMERGENCY</span>
+                    <h3 class="font-bold text-slate-900 text-base">Digital Medical ID</h3>
+                </div>
+                <button onclick="closeEmergencyIDModal()" class="text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                    <div>
+                        <div class="font-bold text-slate-900 text-sm" id="em-name">Priya Sharma</div>
+                        <div class="text-[10px] font-mono text-slate-400" id="em-pid">CV-PAT-1001</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-slate-400 uppercase font-bold">Blood Group</div>
+                        <div class="text-lg font-black text-rose-600" id="em-blood">B+</div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                    <div class="font-bold text-rose-900">Documented Allergies:</div>
+                    <div class="text-rose-800 font-semibold mt-0.5" id="em-allergies">Penicillin, Sulfa drugs</div>
+                </div>
+
+                <div>
+                    <span class="font-bold text-slate-700">Existing Conditions:</span>
+                    <div class="text-slate-600 mt-0.5" id="em-conditions">Type 2 Diabetes Mellitus, Mild Hypertension</div>
+                </div>
+
+                <div>
+                    <span class="font-bold text-slate-700">Current Medications:</span>
+                    <div class="text-slate-600 mt-0.5" id="em-meds">Metformin 500mg, Amlodipine 5mg</div>
+                </div>
+
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div class="font-bold text-slate-700">Emergency Contact:</div>
+                    <div class="text-slate-800 font-semibold mt-0.5" id="em-contact">Vikram Sharma (Spouse) - +91 98201 54321</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. DOCTOR ADD NOTE MODAL -->
+    <div id="doctor-add-note-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 class="font-bold text-slate-900 text-sm">Add Clinical Consultation Note / Rx</h3>
+                <button onclick="closeDoctorAddNoteModal()" class="text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="text-xs text-slate-500">Patient: <span id="doc-note-pname" class="font-bold text-slate-800"></span></div>
+            <input type="hidden" id="doc-note-pid">
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Consultation Title</label>
+                    <input id="doc-note-title" type="text" placeholder="e.g. Follow-up Review & Glycemic Adjustment" value="Cardiometabolic Consultation & Review" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                </div>
+                <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Clinical Notes & Observations</label>
+                    <textarea id="doc-note-text" rows="4" placeholder="Enter findings, physical exam notes, and clinical advice..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none">Blood pressure today 126/82 mmHg. Glycemic control is improving with HbA1c at 7.2%. Recommended continuation of morning walk 45 mins. Advised repeat lipid profile in 8 weeks.</textarea>
+                </div>
+                <button onclick="submitDoctorConsultation()" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-sm transition">
+                    Add Note to Patient's Health Wallet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. DOCTOR VIEW CONSENTED RECORDS MODAL -->
+    <div id="doctor-records-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                <div>
+                    <h3 id="doc-modal-pname" class="font-bold text-slate-900 text-base">Consented Patient Records</h3>
+                    <div id="doc-modal-meta" class="text-xs text-slate-500">Authorized Scopes</div>
+                </div>
+                <button onclick="closeDoctorRecordsModal()" class="p-1.5 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto">
+                <div id="doc-modal-records-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Upload Record Submission Helper -->
+    <script>
+        async function handleUploadSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById("up-title").value;
+            const type = document.getElementById("up-type").value;
+            const date = document.getElementById("up-date").value;
+            const hospital = document.getElementById("up-hospital").value;
+            const doctor = document.getElementById("up-doctor").value;
+            const desc = document.getElementById("up-desc").value;
+
+            const formData = new FormData();
+            formData.append("title", title);
+            formData.append("record_type", type);
+            formData.append("record_date", date);
+            formData.append("hospital_name", hospital);
+            formData.append("doctor_name", doctor || "Self Reported");
+            formData.append("description", desc);
+
+            try {
+                const res = await fetch("/api/records/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                if (res.ok) {
+                    showToast("Record encrypted and uploaded successfully!", "success");
+                    document.getElementById("upload-record-modal").classList.add("hidden");
+                    loadPatientRecords();
+                    loadPatientDashboard();
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || "Upload failed", "error");
+                }
+            } catch (err) {
+                console.error("Upload error", err);
+            }
+        }
+
+        async function scanQRTokenDoctor() {
+            const token = document.getElementById("doc-qr-token-input").value.trim();
+            if (!token) return;
+            try {
+                const res = await fetch("/api/consents/qr/scan", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ qr_token: token })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(data.message, "success");
+                    document.getElementById("doc-qr-token-input").value = "";
+                    loadDoctorPortal();
+                } else {
+                    const err = await res.json();
+                    showToast(err.detail || "Scan failed", "error");
+                }
+            } catch (e) {
+                console.error("Scan error", e);
+            }
+        }
+    </script>
+
+    <!-- App JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
