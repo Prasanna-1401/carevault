@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from dulwich import porcelain
 from dulwich.repo import Repo
@@ -73,37 +74,54 @@ def init_and_commit():
         "app/templates/index.html"
     ]
 
-    # Create empty __init__.py if missing
-    for p in ["app/__init__.py", "app/services/__init__.py", "app/routers/__init__.py"]:
-        init_file = REPO_PATH / p
-        if not init_file.exists():
-            init_file.parent.mkdir(parents=True, exist_ok=True)
-            init_file.write_text("# CareVault AI package\n", encoding="utf-8")
-
     existing_files = [f for f in tracked_files if (REPO_PATH / f).exists()]
-    
     porcelain.add(str(REPO_PATH), paths=existing_files)
     print(f"Staged {len(existing_files)} files into Git index.")
 
-    # 5. Commit
     commit_msg = b"Initial release: CareVault AI - Patient-Controlled Digital Health Wallet & Clinical Decision Support"
-    commit_sha = porcelain.commit(
-        str(REPO_PATH),
-        message=commit_msg,
-        committer=b"Prasanna-1401 <Prasanna-1401@users.noreply.github.com>",
-        author=b"Prasanna-1401 <Prasanna-1401@users.noreply.github.com>"
-    )
-    print(f"Commit created successfully! Hash: {commit_sha.decode()[:8]}")
-
-    # Set branch to main
     try:
+        commit_sha = porcelain.commit(
+            str(REPO_PATH),
+            message=commit_msg,
+            committer=b"Prasanna-1401 <Prasanna-1401@users.noreply.github.com>",
+            author=b"Prasanna-1401 <Prasanna-1401@users.noreply.github.com>"
+        )
+        print(f"Commit created successfully! Hash: {commit_sha.decode()[:8]}")
         repo.refs[b"refs/heads/main"] = commit_sha
         repo.refs.set_symbolic_ref(b"HEAD", b"refs/heads/main")
-        print("Branch set to 'main'.")
     except Exception as e:
-        print("Branch note:", e)
+        print("Commit note (already committed or unchanged):", e)
 
-    print("\nGit repository successfully configured and committed for Prasanna-1401!")
+    print("\nGit repository ready.")
+
+def push_to_github(token: str = None):
+    token = token or os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+    if not token:
+        print("\n[!] ERROR: GitHub authentication token required to push.")
+        print("Please provide a GitHub Personal Access Token (PAT).")
+        print("Usage: python git_manager.py push <YOUR_PERSONAL_ACCESS_TOKEN>")
+        print("Or set environment variable: $env:GITHUB_TOKEN='ghp_your_token'")
+        return False
+
+    auth_url = f"https://Prasanna-1401:{token}@github.com/Prasanna-1401/carevault.git"
+    print(f"Pushing branch 'main' to https://github.com/Prasanna-1401/carevault.git ...")
+    try:
+        porcelain.push(
+            str(REPO_PATH),
+            remote_location=auth_url,
+            refspecs=["refs/heads/main:refs/heads/main"]
+        )
+        print("[SUCCESS] Successfully pushed CareVault AI to GitHub (https://github.com/Prasanna-1401/carevault)!")
+        return True
+    except Exception as e:
+        print(f"[FAIL] Push failed: {e}")
+        return False
 
 if __name__ == "__main__":
-    init_and_commit()
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "push":
+        tok = sys.argv[2] if len(sys.argv) > 2 else None
+        push_to_github(tok)
+    else:
+        init_and_commit()
+        if len(sys.argv) > 1 and sys.argv[1].startswith("ghp_"):
+            push_to_github(sys.argv[1])
