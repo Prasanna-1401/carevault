@@ -39,6 +39,10 @@ def init_and_commit():
     tracked_files = [
         "README.md",
         ".gitignore",
+        "Dockerfile",
+        "render.yaml",
+        "requirements.txt",
+        "deploy.py",
         "run.bat",
         "run.ps1",
         "test_suite.py",

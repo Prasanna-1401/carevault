@@ -13,17 +13,17 @@ def deploy():
 
     try:
         tunnel = try_cloudflare(port=8000)
-        public_url = tunnel.tunnel_url
-        print(f"\n[SUCCESS] CareVault AI is DEPLOYED and LIVE at:")
-        print(f"👉 {public_url}")
+        public_url = str(tunnel.tunnel)
+        print("\n[SUCCESS] CareVault AI is DEPLOYED and LIVE at:")
+        print("URL: " + public_url)
         print("==================================================")
 
-        with open(DEPLOY_FILE, "w") as f:
-            f.write(public_url)
+        with open(DEPLOY_FILE, "w", encoding="utf-8") as f:
+            f.write(public_url.strip())
 
         # Keep tunnel active
         while True:
-            time.sleep(60)
+            time.sleep(30)
     except KeyboardInterrupt:
         print("\nDeployment stopped.")
     except Exception as e:
